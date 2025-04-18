@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "321139598212",
+    "firebase_url": "https://bmp280-3eefe-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "bmp280-3eefe",
+    "storage_bucket": "bmp280-3eefe.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:321139598212:android:97a8f5b4da2b684f1bf3d1",
+        "android_client_info": {
+          "package_name": "com.example.drivana"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "321139598212-48fiu596o6fem30emmee04aj5l121ein.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAHXTvwRjJlyCtvnEUSeKQi0JquYx6rmxA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "321139598212-48fiu596o6fem30emmee04aj5l121ein.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
