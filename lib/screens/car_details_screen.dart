@@ -51,6 +51,11 @@ class CarDetailsScreen extends StatelessWidget {
                     builder: (context) => BookingScreen(
                       carId: carId ?? 'dummy_id',
                       model: model,
+                      car: {
+                        'model': model,
+                        'price': price,
+                        'imageUrl': imageUrl,
+                      },
                     ),
                   ),
                 );

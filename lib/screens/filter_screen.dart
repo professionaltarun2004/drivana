@@ -2,270 +2,315 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 
 class FilterScreen extends StatefulWidget {
-  final Function(Map<String, dynamic>) onApply;
+  final Function(Map<String, dynamic>) onApplyFilters;
+  final Map<String, dynamic> initialFilters;
 
-  FilterScreen({required this.onApply});
+  const FilterScreen({
+    super.key,
+    required this.onApplyFilters,
+    this.initialFilters = const {'city': 'Hyderabad'},
+  });
 
   @override
   _FilterScreenState createState() => _FilterScreenState();
 }
 
 class _FilterScreenState extends State<FilterScreen> {
-  String? _selectedCity;
-  String? _selectedCarType;
-  String? _selectedCondition;
-  String? _selectedFuel;
+  late String _city;
+  String? _carType;
+  String? _condition;
+  String? _fuel;
   DateTime? _pickupDate;
-  double _duration = 1.0;
+  int? _duration;
 
-  final List<Map<String, dynamic>> cities = [
-    {'name': 'Agra', 'lat': 27.1767, 'lon': 78.0081},
-    {'name': 'Ahmedabad', 'lat': 23.0225, 'lon': 72.5714},
-    {'name': 'Ajmer', 'lat': 26.4499, 'lon': 74.6399},
-    {'name': 'Alleppey', 'lat': 9.4981, 'lon': 76.3388},
-    {'name': 'Amritsar', 'lat': 31.6340, 'lon': 74.8723},
-    {'name': 'Hyderabad', 'lat': 17.3850, 'lon': 78.4867},
-    // Add remaining 94 cities from April 19, 2025, 07:10 AM PDT response
+  final List<String> _cities = [
+    'Hyderabad',
+    'Bangalore',
+    'Chennai',
+    'Mumbai',
+    'Delhi',
   ];
+  final List<String> _carTypes = ['SUV', 'Sedan', 'Hatchback', 'Luxury'];
+  final List<String> _conditions = ['New', 'Used'];
+  final List<String> _fuels = ['Petrol', 'Diesel', 'Electric'];
 
-  final List<String> carTypes = ['Sedan', 'SUV', 'Sports', 'Electric', 'Hatchback', 'MPV', 'Pickup'];
-  final List<String> conditions = ['New', 'Used'];
-  final List<String> fuels = ['Petrol', 'Diesel', 'Electric'];
-
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(Duration(days: 365)),
-    );
-    if (picked != null) {
-      setState(() {
-        _pickupDate = picked;
-      });
-    }
+  @override
+  void initState() {
+    super.initState();
+    _city = widget.initialFilters['city'] ?? 'Hyderabad';
+    _carType = widget.initialFilters['carType'];
+    _condition = widget.initialFilters['condition'];
+    _fuel = widget.initialFilters['fuel'];
+    _pickupDate = widget.initialFilters['pickupDate'];
+    _duration = widget.initialFilters['duration'];
   }
 
   void _applyFilters() {
-    widget.onApply({
-      'city': _selectedCity,
-      'carType': _selectedCarType,
-      'condition': _selectedCondition,
-      'fuel': _selectedFuel,
+    final filters = {
+      'city': _city,
+      'carType': _carType,
+      'condition': _condition,
+      'fuel': _fuel,
       'pickupDate': _pickupDate,
-      'duration': _duration.round(),
-    });
+      'duration': _duration,
+    };
+    widget.onApplyFilters(filters);
     Navigator.pop(context);
-  }
-
-  void _selectCityFromTap(LatLng tappedPoint) {
-    String? closestCity;
-    double minDistance = double.infinity;
-
-    for (var city in cities) {
-      final cityPoint = LatLng(city['lat'], city['lon']);
-      final distance = const Distance().as(
-        LengthUnit.Kilometer,
-        cityPoint,
-        tappedPoint,
-      );
-      if (distance < minDistance && distance < 50) { // 50km threshold
-        minDistance = distance;
-        closestCity = city['name'];
-      }
-    }
-
-    setState(() {
-      _selectedCity = closestCity;
-      print('Selected city: $closestCity, Distance: $minDistance km');
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Filters', style: GoogleFonts.poppins(color: Colors.white)),
+        title: Text(
+          'Filter Cars',
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         backgroundColor: Colors.blue.shade700,
-        actions: [
-          TextButton(
-            onPressed: _applyFilters,
-            child: Text(
-              'Apply',
-              style: GoogleFonts.poppins(color: Colors.amber.shade300),
-            ),
-          ),
-        ],
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      body: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Select City on Map',
-                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
-              ).animate().fadeIn(duration: 400.ms),
-              Container(
-                height: 300,
-                child: FlutterMap(
-                  options: MapOptions(
-                    initialCenter: LatLng(20.5937, 78.9629), // Center of India
-                    initialZoom: 5.0,
-                    onTap: (tapPosition, point) {
-                      print('Map tapped at: $point');
-                      _selectCityFromTap(point);
-                    },
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-                      subdomains: ['a', 'b', 'c', 'd'],
-                      tileProvider: NetworkTileProvider(),
-                      retinaMode: RetinaMode.isHighDensity(context),
-                      additionalOptions: {
-                        'attribution': '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
-                      },
-                    ),
-                    MarkerLayer(
-                      markers: cities.map((city) {
-                        return Marker(
-                          width: 80.0,
-                          height: 80.0,
-                          point: LatLng(city['lat'], city['lon']),
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedCity = city['name'];
-                                print('Marker tapped: ${city['name']}');
-                              });
-                            },
-                            child: Icon(
-                              Icons.location_pin,
-                              color: _selectedCity == city['name'] ? Colors.blue : Colors.red,
-                              size: 40,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ),
-              ).animate().slideY(begin: -0.1, duration: 400.ms),
-              SizedBox(height: 16),
-              Text(
-                'Selected City: ${_selectedCity ?? 'None'}',
-                style: GoogleFonts.poppins(fontSize: 16),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Location',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue.shade700,
               ),
-              SizedBox(height: 16),
-              Text(
-                'Car Type',
-                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
-              ).animate().fadeIn(duration: 400.ms),
-              Wrap(
-                spacing: 8.0,
-                children: carTypes.map((type) {
-                  return ChoiceChip(
-                    label: Text(type, style: GoogleFonts.poppins()),
-                    selected: _selectedCarType == type,
-                    selectedColor: Colors.blue.shade700,
-                    labelStyle: TextStyle(
-                      color: _selectedCarType == type ? Colors.white : Colors.black,
-                    ),
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedCarType = selected ? type : null;
-                      });
-                    },
-                  );
-                }).toList(),
-              ).animate().slideX(begin: -0.1, duration: 400.ms),
-              SizedBox(height: 16),
-              Text(
-                'Condition',
-                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
-              ).animate().fadeIn(duration: 400.ms),
-              Wrap(
-                spacing: 8.0,
-                children: conditions.map((condition) {
-                  return ChoiceChip(
-                    label: Text(condition, style: GoogleFonts.poppins()),
-                    selected: _selectedCondition == condition,
-                    selectedColor: Colors.blue.shade700,
-                    labelStyle: TextStyle(
-                      color: _selectedCondition == condition ? Colors.white : Colors.black,
-                    ),
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedCondition = selected ? condition : null;
-                      });
-                    },
-                  );
-                }).toList(),
-              ).animate().slideX(begin: -0.1, duration: 400.ms),
-              SizedBox(height: 16),
-              Text(
-                'Fuel Type',
-                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
-              ).animate().fadeIn(duration: 400.ms),
-              Wrap(
-                spacing: 8.0,
-                children: fuels.map((fuel) {
-                  return ChoiceChip(
-                    label: Text(fuel, style: GoogleFonts.poppins()),
-                    selected: _selectedFuel == fuel,
-                    selectedColor: Colors.blue.shade700,
-                    labelStyle: TextStyle(
-                      color: _selectedFuel == fuel ? Colors.white : Colors.black,
-                    ),
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedFuel = selected ? fuel : null;
-                      });
-                    },
-                  );
-                }).toList(),
-              ).animate().slideX(begin: -0.1, duration: 400.ms),
-              SizedBox(height: 16),
-              Text(
-                'Pickup Date',
-                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
-              ).animate().fadeIn(duration: 400.ms),
-              TextButton(
-                onPressed: () => _selectDate(context),
-                child: Text(
-                  _pickupDate == null
-                      ? 'Select Pickup Date'
-                      : 'Pickup: ${DateFormat.yMd().format(_pickupDate!)}',
-                  style: GoogleFonts.poppins(),
+            ),
+            DropdownButtonFormField<String>(
+              value: _city,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ).animate().slideX(begin: -0.1, duration: 400.ms),
-              SizedBox(height: 16),
-              Text(
-                'Duration (Days)',
-                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
-              ).animate().fadeIn(duration: 400.ms),
-              Slider(
-                value: _duration,
-                min: 1,
-                max: 30,
-                divisions: 29,
-                label: '${_duration.round()} days',
-                activeColor: Colors.blue.shade700,
-                onChanged: (value) {
+              ),
+              items:
+                  _cities.map((city) {
+                    return DropdownMenuItem<String>(
+                      value: city,
+                      child: Text(city, style: GoogleFonts.poppins()),
+                    );
+                  }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _city = value!;
+                });
+              },
+            ).animate().fadeIn(duration: 600.ms),
+            SizedBox(height: 16),
+            Text(
+              'Car Type',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue.shade700,
+              ),
+            ),
+            DropdownButtonFormField<String>(
+              value: _carType,
+              hint: Text(
+                'Select Car Type',
+                style: GoogleFonts.poppins(color: Colors.grey.shade600),
+              ),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              items:
+                  _carTypes.map((type) {
+                    return DropdownMenuItem<String>(
+                      value: type,
+                      child: Text(type, style: GoogleFonts.poppins()),
+                    );
+                  }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _carType = value;
+                });
+              },
+            ).animate().fadeIn(duration: 600.ms),
+            SizedBox(height: 16),
+            Text(
+              'Condition',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue.shade700,
+              ),
+            ),
+            DropdownButtonFormField<String>(
+              value: _condition,
+              hint: Text(
+                'Select Condition',
+                style: GoogleFonts.poppins(color: Colors.grey.shade600),
+              ),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              items:
+                  _conditions.map((condition) {
+                    return DropdownMenuItem<String>(
+                      value: condition,
+                      child: Text(condition, style: GoogleFonts.poppins()),
+                    );
+                  }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _condition = value;
+                });
+              },
+            ).animate().fadeIn(duration: 600.ms),
+            SizedBox(height: 16),
+            Text(
+              'Fuel Type',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue.shade700,
+              ),
+            ),
+            DropdownButtonFormField<String>(
+              value: _fuel,
+              hint: Text(
+                'Select Fuel Type',
+                style: GoogleFonts.poppins(color: Colors.grey.shade600),
+              ),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              items:
+                  _fuels.map((fuel) {
+                    return DropdownMenuItem<String>(
+                      value: fuel,
+                      child: Text(fuel, style: GoogleFonts.poppins()),
+                    );
+                  }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _fuel = value;
+                });
+              },
+            ).animate().fadeIn(duration: 600.ms),
+            SizedBox(height: 16),
+            Text(
+              'Pickup Date',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue.shade700,
+              ),
+            ),
+            TextFormField(
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                suffixIcon: Icon(
+                  Icons.calendar_today,
+                  color: Colors.blue.shade700,
+                ),
+              ),
+              readOnly: true,
+              controller: TextEditingController(
+                text:
+                    _pickupDate != null
+                        ? DateFormat('yyyy-MM-dd').format(_pickupDate!)
+                        : '',
+              ),
+              onTap: () async {
+                DateTime? picked = await showDatePicker(
+                  context: context,
+                  initialDate: _pickupDate ?? DateTime.now(),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime(2030),
+                );
+                if (picked != null && picked != _pickupDate) {
                   setState(() {
-                    _duration = value;
+                    _pickupDate = picked;
                   });
-                },
-              ).animate().slideX(begin: -0.1, duration: 400.ms),
-            ],
-          ),
+                }
+              },
+            ).animate().fadeIn(duration: 600.ms),
+            SizedBox(height: 16),
+            Text(
+              'Duration (Days)',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue.shade700,
+              ),
+            ),
+            TextFormField(
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                hintText: 'Enter duration',
+              ),
+              keyboardType: TextInputType.number,
+              controller: TextEditingController(
+                text: _duration?.toString() ?? '',
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _duration = int.tryParse(value) ?? 0;
+                });
+              },
+            ).animate().fadeIn(duration: 600.ms),
+            SizedBox(height: 20),
+            Center(
+              child: ElevatedButton(
+                onPressed: _applyFilters,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade700,
+                  foregroundColor: Colors.amber.shade300,
+                  padding: EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 5,
+                ),
+                child: Text(
+                  'Apply Filters',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+              ).animate().fadeIn(duration: 600.ms),
+            ),
+          ],
         ),
       ),
     );
