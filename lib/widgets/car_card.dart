@@ -5,7 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 class CarCard3D extends StatelessWidget {
   final String model;
-  final double price;
+  final double price; // Base price per day
   final String imagePath;
   final String carId;
   final String city;
@@ -31,7 +31,7 @@ class CarCard3D extends StatelessWidget {
         child: Transform(
           transform:
               Matrix4.identity()
-                ..setEntry(3, 2, 0.001) // Adds 3D perspective
+                ..setEntry(3, 2, 0.001)
                 ..rotateX(0.02),
           alignment: Alignment.center,
           child: Card(
@@ -55,8 +55,21 @@ class CarCard3D extends StatelessWidget {
                           ),
                         ),
                     errorWidget:
-                        (context, url, error) =>
-                            Icon(Icons.error, color: Colors.red),
+                        (context, url, error) => Container(
+                          color: Colors.grey.shade200,
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.error, color: Colors.red, size: 40),
+                                Text(
+                                  'Image failed to load',
+                                  style: GoogleFonts.poppins(color: Colors.red),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                   ),
                 ),
                 Positioned.fill(
@@ -92,7 +105,7 @@ class CarCard3D extends StatelessWidget {
                       ),
                       SizedBox(height: 4),
                       Text(
-                        '₹$price/day',
+                        '₹${(price * (1 + 0.1)).toStringAsFixed(2)}/day', // Base price + 10% for real-time adjustment
                         style: GoogleFonts.poppins(
                           color: Colors.amber.shade300,
                           fontSize: 16,

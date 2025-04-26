@@ -28,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
     'Rating',
   ];
   final _offerEndTime = DateTime.now().add(Duration(hours: 12));
-  bool _isGridView = false;
+  final bool _isGridView = false;
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -221,10 +221,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                     selected: _selectedFilter == filter,
                                     onSelected: (selected) {
-                                      if (selected)
+                                      if (selected) {
                                         setState(
                                           () => _selectedFilter = filter,
                                         );
+                                      }
                                     },
                                     selectedColor: Colors.blue.shade700,
                                     backgroundColor: Colors.white,
