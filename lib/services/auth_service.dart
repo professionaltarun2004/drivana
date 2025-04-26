@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -11,7 +12,9 @@ class AuthService {
       );
       return result.user;
     } catch (e) {
-      print('Sign-in error: $e');
+      if (kDebugMode) {
+        print('Sign-in error: $e');
+      }
       return null;
     }
   }
@@ -24,7 +27,9 @@ class AuthService {
       );
       return result.user;
     } catch (e) {
-      print('Sign-up error: $e');
+      if (kDebugMode) {
+        print('Sign-up error: $e');
+      }
       return null;
     }
   }

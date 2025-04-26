@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class FirestoreService {
   final CollectionReference cars = FirebaseFirestore.instance.collection(
@@ -41,9 +42,13 @@ class FirestoreService {
         'fuel': fuel,
         'timestamp': FieldValue.serverTimestamp(),
       });
-      print('Added car: $model in $city');
+      if (kDebugMode) {
+        print('Added car: $model in $city');
+      }
     } catch (e) {
-      print('Error adding car: $e');
+      if (kDebugMode) {
+        print('Error adding car: $e');
+      }
       rethrow;
     }
   }
@@ -70,12 +75,16 @@ class FirestoreService {
       if (fuel != null && fuel.isNotEmpty) {
         query = query.where('fuel', isEqualTo: fuel);
       }
-      print(
+      if (kDebugMode) {
+        print(
         'Fetching cars with filters: city=$city, carType=$carType, condition=$condition, fuel=$fuel',
       );
+      }
       return query.snapshots();
     } catch (e) {
-      print('Error building query: $e');
+      if (kDebugMode) {
+        print('Error building query: $e');
+      }
       rethrow;
     }
   }
@@ -95,9 +104,13 @@ class FirestoreService {
         'timestamp': FieldValue.serverTimestamp(),
       });
       await cars.doc(carId).update({'available': false});
-      print('Booked car: $carId for user: $userId');
+      if (kDebugMode) {
+        print('Booked car: $carId for user: $userId');
+      }
     } catch (e) {
-      print('Error booking car: $e');
+      if (kDebugMode) {
+        print('Error booking car: $e');
+      }
       rethrow;
     }
   }
@@ -106,7 +119,9 @@ class FirestoreService {
     try {
       return bookings.where('userId', isEqualTo: userId).snapshots();
     } catch (e) {
-      print('Error fetching bookings: $e');
+      if (kDebugMode) {
+        print('Error fetching bookings: $e');
+      }
       rethrow;
     }
   }
@@ -178,9 +193,13 @@ class FirestoreService {
           fuel: car['fuel'] as String,
         );
       }
-      print('Successfully seeded ${carData.length} cars for $city');
+      if (kDebugMode) {
+        print('Successfully seeded ${carData.length} cars for $city');
+      }
     } catch (e) {
-      print('Error seeding cars: $e');
+      if (kDebugMode) {
+        print('Error seeding cars: $e');
+      }
       rethrow;
     }
   }
@@ -189,13 +208,19 @@ class FirestoreService {
     try {
       final snapshot = await cars.where('city', isEqualTo: city).limit(1).get();
       if (snapshot.docs.isEmpty) {
-        print('No cars found for $city, seeding...');
+        if (kDebugMode) {
+          print('No cars found for $city, seeding...');
+        }
         await seedCars(city);
       } else {
-        print('Cars already exist for $city');
+        if (kDebugMode) {
+          print('Cars already exist for $city');
+        }
       }
     } catch (e) {
-      print('Error checking cars: $e');
+      if (kDebugMode) {
+        print('Error checking cars: $e');
+      }
       rethrow;
     }
   }

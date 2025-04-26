@@ -1,5 +1,8 @@
+// ignore_for_file: library_private_types_in_public_api, use_build_context_synchronously
+
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
@@ -342,7 +345,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
-                      print('Firestore error: ${snapshot.error}');
+                      if (kDebugMode) {
+                        print('Firestore error: ${snapshot.error}');
+                      }
                       String errorMessage =
                           'Error fetching cars: ${snapshot.error}';
                       if (snapshot.error.toString().contains(
@@ -408,9 +413,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     }
 
                     final cars = snapshot.data!.docs;
-                    print(
+                    if (kDebugMode) {
+                      print(
                       'Fetched ${cars.length} cars for city: ${_filters['city']} with filters: $_filters',
                     );
+                    }
 
                     if (cars.isEmpty) {
                       return Center(
