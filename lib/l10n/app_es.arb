@@ -1,0 +1,22 @@
+{
+    "appName": "Drivana",
+    "home": "Inicio",
+    "profile": "Perfil",
+    "orders": "Pedidos",
+    "transactions": "Transacciones",
+    "dealOfTheDay": "¡Oferta del Día!",
+    "firstBookingOffer": "50% de descuento en la primera reserva",
+    "recommendedForYou": "Recomendado para ti",
+    "searchCars": "Buscar autos...",
+    "seedCars": "Sembrar autos ahora",
+    "refreshData": "Actualizar datos",
+    "noCarsFound": "No se encontraron autos en {city}",
+    "tryAdjustingFilters": "Intenta ajustar los filtros o sembrar autos.",
+    "errorFetchingCars": "Error al obtener autos: {error}",
+    "permissionDenied": "Permiso denegado. Verifica las reglas de Firestore e inténtalo de nuevo.",
+    "retry": "Reintentar",
+    "selectLanguage": "Seleccionar idioma",
+    "languageEnglish": "Inglés",
+    "languageSpanish": "Español",
+    "languageHindi": "Hindi"
+  }
