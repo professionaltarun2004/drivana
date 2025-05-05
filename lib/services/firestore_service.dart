@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added for authentication check
 
 class FirestoreService {
   final CollectionReference cars = FirebaseFirestore.instance.collection(
@@ -9,15 +10,46 @@ class FirestoreService {
     'bookings',
   );
 
-  // Image URLs for seeding
+  // Use local assets as a fallback for images
+  // static const List<String> carImageUrls = [
+  //   'D:\\B-Tech\\Internships\\Pianalytix\\Apps\\drivana\assets\\images\\car1.jpg', // Replace with actual asset paths
+  //   'D:\\B-TechInternships\\Pianalytix\\Apps\\assets\\images\\car2.jpg',
+  //   'D:\\B-Tech\\Internships\\Apps\\drivana\\assets\\images\\car3.jpg',
+  //   'D:\\B-Tech\\Internships\\Pianalytix\\Apps\\drivana\\assets\\images\\car4.jpg',
+  //   'D:\\B-Tech\\Internships\\Pianalytix\\Apps\\drivana\\assets\\images\\car5.jpg',
+  //   'D:\\B-Tech\\Internships\\Pianalytix\\Apps\\drivana\\assets\\images\\car6.jpg',
+  //   'D:\\B-Tech\\Internships\\Pianalytix\\Apps\\drivana\\assets\\images\\car7.jpg',
+  // ];
   static const List<String> carImageUrls = [
-    'https://images.unsplash.com/photo-1605557618244-929df0cb81e8?auto=compress',
-    'https://images.unsplash.com/photo-1580273916550-ebdde4c6421b?auto=compress',
-    'https://images.unsplash.com/photo-1606153607738-a28b36852d4b?auto=compress',
-    'https://images.unsplash.com/photo-1626668893633-73e2e3b360c6?auto=compress',
-    'https://images.unsplash.com/photo-1611653784679-0a2e2e9e4b1e?auto=compress',
-    'https://images.unsplash.com/photo-1592805721367-98d6e678e6f8?auto=compress',
-    'https://images.unsplash.com/photo-1605559423140-7e6c3f7f5931?auto=compress',
+    'assets/images/car1.jpg',
+    'assets/images/car2.jpg',
+    'assets/images/car3.jpg',
+    'assets/images/car4.jpg',
+    'assets/images/car5.jpg',
+    'assets/images/car6.jpg',
+    'assets/images/car7.jpg',
+  ];
+
+  // Fallback to online URLs if network is available (optional)
+  static const List<String> onlineCarImageUrls = [
+    "https://images.unsplash.com/photo-1459603677915-a62079ffd002?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8Y2FyfGVufDB8fDB8fHww",
+    'https://images.unsplash.com/photo-1502877338535-766e1452684a?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTJ8fGNhcnxlbnwwfHwwfHx8MA%3D%3D',
+    'https://images.unsplash.com/photo-1507136566006-cfc505b114fc?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MzZ8fGNhcnxlbnwwfHwwfHx8MA%3D%3D',
+    'https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mzl8fGNhcnxlbnwwfHwwfHx8MA%3D%3D',
+    'https://images.unsplash.com/photo-1542362567-b07e54358753?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NDl8fGNhcnxlbnwwfHwwfHx8MA%3D%3D',
+    'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NTh8fGNhcnxlbnwwfHwwfHx8MA%3D%3D',
+    'https://plus.unsplash.com/premium_photo-1683121316206-8441783ee61f?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTA0fHxjYXJ8ZW58MHx8MHx8fDA%3D',
+  ];
+
+  // Static location data for seeding (around Hyderabad)
+  static const List<Map<String, double>> carLocations = [
+    {'latitude': 17.395044, 'longitude': 78.496671}, // 1 km NE of Hyderabad
+    {'latitude': 17.375044, 'longitude': 78.476671}, // 1 km SW
+    {'latitude': 17.365044, 'longitude': 78.466671}, // 2 km SW
+    {'latitude': 17.405044, 'longitude': 78.486671}, // 1 km N
+    {'latitude': 17.385044, 'longitude': 78.506671}, // 1 km E
+    {'latitude': 17.375044, 'longitude': 78.496671}, // 1 km S
+    {'latitude': 17.395044, 'longitude': 78.466671}, // 1 km W
   ];
 
   Future<void> addCar({
@@ -29,6 +61,8 @@ class FirestoreService {
     required String carType,
     required String condition,
     required String fuel,
+    double? latitude,
+    double? longitude,
   }) async {
     try {
       await cars.add({
@@ -40,14 +74,25 @@ class FirestoreService {
         'carType': carType,
         'condition': condition,
         'fuel': fuel,
+        'latitude': latitude ?? carLocations[0]['latitude'],
+        'longitude': longitude ?? carLocations[0]['longitude'],
         'timestamp': FieldValue.serverTimestamp(),
       });
       if (kDebugMode) {
-        print('Added car: $model in $city');
+        print('Added car: $model in $city at ($latitude, $longitude)');
       }
     } catch (e) {
       if (kDebugMode) {
         print('Error adding car: $e');
+        if (e.toString().contains('permission-denied')) {
+          print(
+            'Permission denied: Check Firestore rules for /cars collection.',
+          );
+        } else if (e.toString().contains('network')) {
+          print(
+            'Network error: Unable to connect to Firestore. Check internet connection.',
+          );
+        }
       }
       rethrow;
     }
@@ -77,8 +122,8 @@ class FirestoreService {
       }
       if (kDebugMode) {
         print(
-        'Fetching cars with filters: city=$city, carType=$carType, condition=$condition, fuel=$fuel',
-      );
+          'Fetching cars with filters: city=$city, carType=$carType, condition=$condition, fuel=$fuel',
+        );
       }
       return query.snapshots();
     } catch (e) {
@@ -89,14 +134,23 @@ class FirestoreService {
     }
   }
 
-  Future<void> bookCar({
+  Future<DocumentReference> bookCar({
     required String carId,
     required DateTime startDate,
     required DateTime endDate,
     required String userId,
   }) async {
     try {
-      await bookings.add({
+      // Check if user is authenticated
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User must be authenticated to book a car.');
+      }
+      if (user.uid != userId) {
+        throw Exception('User ID does not match authenticated user.');
+      }
+
+      DocumentReference bookingRef = await bookings.add({
         'userId': userId,
         'carId': carId,
         'startDate': startDate,
@@ -105,11 +159,17 @@ class FirestoreService {
       });
       await cars.doc(carId).update({'available': false});
       if (kDebugMode) {
-        print('Booked car: $carId for user: $userId');
+        print(
+          'Booked car: $carId for user: $userId with booking ID: ${bookingRef.id}',
+        );
       }
+      return bookingRef;
     } catch (e) {
       if (kDebugMode) {
         print('Error booking car: $e');
+        if (e.toString().contains('permission-denied')) {
+          print('Permission denied: User must be authenticated to book a car.');
+        }
       }
       rethrow;
     }
@@ -117,6 +177,15 @@ class FirestoreService {
 
   Stream<QuerySnapshot> getUserBookings(String userId) {
     try {
+      // Check if user is authenticated
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User must be authenticated to fetch bookings.');
+      }
+      if (user.uid != userId) {
+        throw Exception('User ID does not match authenticated user.');
+      }
+
       return bookings.where('userId', isEqualTo: userId).snapshots();
     } catch (e) {
       if (kDebugMode) {
@@ -180,8 +249,26 @@ class FirestoreService {
     ];
 
     try {
+      // Check if seeding is necessary
+      final existingCars = await cars.where('city', isEqualTo: city).get();
+      if (existingCars.docs.isNotEmpty) {
+        if (kDebugMode) {
+          print('Cars already exist for $city. Skipping seeding.');
+        }
+        return; // Skip seeding if cars already exist
+      }
+
+      // Clear existing cars (if any) and seed new ones
+      for (var doc in existingCars.docs) {
+        await doc.reference.delete();
+      }
+      if (kDebugMode) {
+        print('Cleared existing cars for $city before seeding.');
+      }
+
       for (var i = 0; i < carData.length; i++) {
         final car = carData[i];
+        final location = carLocations[i % carLocations.length];
         await addCar(
           model: car['model'] as String,
           price: car['price'] as double,
@@ -191,6 +278,8 @@ class FirestoreService {
           carType: car['carType'] as String,
           condition: car['condition'] as String,
           fuel: car['fuel'] as String,
+          latitude: location['latitude'],
+          longitude: location['longitude'],
         );
       }
       if (kDebugMode) {
@@ -199,6 +288,11 @@ class FirestoreService {
     } catch (e) {
       if (kDebugMode) {
         print('Error seeding cars: $e');
+        if (e.toString().contains('permission-denied')) {
+          print(
+            'Permission denied: Check Firestore rules for /cars collection.',
+          );
+        }
       }
       rethrow;
     }
@@ -220,6 +314,11 @@ class FirestoreService {
     } catch (e) {
       if (kDebugMode) {
         print('Error checking cars: $e');
+        if (e.toString().contains('network')) {
+          print(
+            'Network error: Unable to connect to Firestore. Check internet connection.',
+          );
+        }
       }
       rethrow;
     }

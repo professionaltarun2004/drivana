@@ -1,281 +1,410 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:glassmorphism/glassmorphism.dart';
+import 'package:vibration/vibration.dart';
+import 'package:simple_animations/simple_animations.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:flutter_tilt/flutter_tilt.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Scaffold(
+      body: Stack(
         children: [
-          Container(
-            padding: EdgeInsets.all(16),
+          // Dynamic Gradient Background
+          AnimatedContainer(
+            duration: const Duration(seconds: 10),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 8,
-                  offset: Offset(0, 4),
-                ),
-              ],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color.fromARGB(255, 203, 199, 220),
+                  const Color.fromARGB(255, 220, 157, 157),
+                  const Color.fromARGB(255, 101, 77, 77),
+                ],
+              ),
             ),
-            child: Row(
+          ),
+
+          // Subtle Particle Animation
+          PlayAnimationBuilder(
+            tween: Tween<double>(begin: 0, end: 1),
+            duration: const Duration(seconds: 20),
+            builder: (context, value, child) {
+              return CustomPaint(
+                painter: ParticlePainter(),
+                child: Container(),
+              );
+            },
+          ),
+
+          // Main Content
+          SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundImage: NetworkImage(
-                    'https://via.placeholder.com/150',
+                // Profile Header
+                GlassmorphicContainer(
+                  width: double.infinity,
+                  height: 200,
+                  borderRadius: 20,
+                  blur: 20,
+                  alignment: Alignment.center,
+                  border: 2,
+                  linearGradient: LinearGradient(
+                    colors: [
+                      Colors.white.withOpacity(0.1),
+                      Colors.white.withOpacity(0.05),
+                    ],
                   ),
-                ),
-                SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'John Doe',
-                      style: GoogleFonts.poppins(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  borderGradient: LinearGradient(
+                    colors: [
+                      Colors.white.withOpacity(0.5),
+                      Colors.blue.withOpacity(0.2),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Tilt(
+                          tiltConfig: const TiltConfig(
+                            angle: 10,
+                            moveDuration: Duration(milliseconds: 300),
+                          ),
+                          child: Stack(
+                            alignment: Alignment.bottomRight,
+                            children: [
+                              const CircleAvatar(
+                                radius: 50,
+                                backgroundImage: NetworkImage(
+                                  'https://via.placeholder.com/150',
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  Vibration.vibrate(duration: 100);
+                                  // TODO: Implement profile picture change
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.shade700,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.edit,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Shimmer.fromColors(
+                                baseColor: Colors.white,
+                                highlightColor: Colors.blue.shade200,
+                                child: Text(
+                                  'John Doe',
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                'john.doe@example.com',
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 16,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      'john.doe@example.com',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
+                  ),
+                ).animate().fadeIn(duration: 800.ms).slideY(begin: -0.3),
+
+                const SizedBox(height: 20),
+
+                // Account Settings
+                _buildSectionTitle('Account Settings'),
+                _buildListTile(
+                  context,
+                  icon: Icons.edit,
+                  title: 'Edit Profile',
+                  onTap: () => Vibration.vibrate(duration: 100),
+                ).animate().slideX(begin: -0.2, duration: 900.ms),
+                _buildListTile(
+                  context,
+                  icon: Icons.lock,
+                  title: 'Change Password',
+                  onTap: () => Vibration.vibrate(duration: 100),
+                ).animate().slideX(begin: -0.2, duration: 1000.ms),
+                _buildListTile(
+                  context,
+                  icon: Icons.brightness_6,
+                  title: 'Toggle Theme',
+                  onTap: () => Vibration.vibrate(duration: 100),
+                ).animate().slideX(begin: -0.2, duration: 1100.ms),
+                _buildListTile(
+                  context,
+                  icon: Icons.logout,
+                  title: 'Logout',
+                  titleColor: Colors.red.shade700,
+                  iconColor: Colors.red.shade700,
+                  onTap: () => Vibration.vibrate(duration: 200),
+                ).animate().slideX(begin: -0.2, duration: 1200.ms),
+
+                const SizedBox(height: 20),
+
+                // Recent Activity
+                _buildSectionTitle('Recent Activity'),
+                _buildCollapsibleSection(
+                  context,
+                  children: [
+                    _buildActivityTile(
+                      icon: Icons.car_rental,
+                      title: 'Booked Honda Civic',
+                      subtitle: 'Apr 19, 2025',
+                    ),
+                    const Divider(),
+                    _buildActivityTile(
+                      icon: Icons.payment,
+                      title: 'Payment Completed',
+                      subtitle: 'Apr 18, 2025',
                     ),
                   ],
-                ),
+                ).animate().fadeIn(duration: 1300.ms),
+
+                const SizedBox(height: 20),
+
+                // Saved Addresses
+                _buildSectionTitle('Saved Addresses'),
+                _buildListTile(
+                  context,
+                  icon: Icons.location_on,
+                  title: '123 Main St, Hyderabad',
+                  trailing: const Icon(Icons.edit, color: Colors.blue),
+                  onTap: () => Vibration.vibrate(duration: 100),
+                ).animate().fadeIn(duration: 1400.ms),
+
+                const SizedBox(height: 20),
+
+                // Payment Methods
+                _buildSectionTitle('Payment Methods'),
+                _buildCollapsibleSection(
+                  context,
+                  children: [
+                    _buildPaymentTile(
+                      context,
+                      icon: Icons.payment,
+                      title: 'UPI',
+                      isSelected: true,
+                      onTap: () => Vibration.vibrate(duration: 100),
+                    ),
+                    const Divider(),
+                    _buildPaymentTile(
+                      context,
+                      icon: Icons.money,
+                      title: 'Cash',
+                      isSelected: false,
+                      onTap: () => Vibration.vibrate(duration: 100),
+                    ),
+                    const Divider(),
+                    _buildPaymentTile(
+                      context,
+                      icon: Icons.credit_card,
+                      title: 'Others',
+                      isSelected: false,
+                      onTap: () => Vibration.vibrate(duration: 100),
+                    ),
+                  ],
+                ).animate().fadeIn(duration: 1500.ms),
               ],
-            ),
-          ).animate().fadeIn(duration: 600.ms),
-          SizedBox(height: 20),
-          Text(
-            'Account Settings',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.blue.shade700,
             ),
           ),
-          SizedBox(height: 10),
-          ListTile(
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: Icon(Icons.edit, color: Colors.blue.shade700),
-            title: Text('Edit Profile', style: GoogleFonts.poppins()),
-            trailing: Icon(Icons.arrow_forward_ios, size: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            onTap: () {
-              // TODO: Implement edit profile
-            },
-          ).animate().slideX(begin: -0.2, duration: 600.ms),
-          ListTile(
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: Icon(Icons.lock, color: Colors.blue.shade700),
-            title: Text('Change Password', style: GoogleFonts.poppins()),
-            trailing: Icon(Icons.arrow_forward_ios, size: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            onTap: () {
-              // TODO: Implement change password
-            },
-          ).animate().slideX(begin: -0.2, duration: 600.ms),
-          ListTile(
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: Icon(Icons.logout, color: Colors.red.shade700),
-            title: Text(
-              'Logout',
-              style: GoogleFonts.poppins(color: Colors.red.shade700),
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            onTap: () {
-              // TODO: Implement logout
-            },
-          ).animate().slideX(begin: -0.2, duration: 600.ms),
-          SizedBox(height: 20),
-          Text(
-            'Recent Activity',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.blue.shade700,
-            ),
-          ),
-          Container(
-            margin: EdgeInsets.only(top: 10),
-            padding: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 8,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                ListTile(
-                  contentPadding: EdgeInsets.symmetric(vertical: 0),
-                  leading: Icon(Icons.car_rental, color: Colors.blue.shade700),
-                  title: Text(
-                    'Booked Honda Civic',
-                    style: GoogleFonts.poppins(),
-                  ),
-                  subtitle: Text(
-                    'Apr 19, 2025',
-                    style: GoogleFonts.poppins(color: Colors.grey.shade600),
-                  ),
-                ),
-                Divider(),
-                ListTile(
-                  contentPadding: EdgeInsets.symmetric(vertical: 0),
-                  leading: Icon(Icons.payment, color: Colors.blue.shade700),
-                  title: Text(
-                    'Payment Completed',
-                    style: GoogleFonts.poppins(),
-                  ),
-                  subtitle: Text(
-                    'Apr 18, 2025',
-                    style: GoogleFonts.poppins(color: Colors.grey.shade600),
-                  ),
-                ),
-              ],
-            ),
-          ).animate().fadeIn(duration: 600.ms),
-          SizedBox(height: 20),
-          Text(
-            'Saved Addresses',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.blue.shade700,
-            ),
-          ),
-          Container(
-            margin: EdgeInsets.only(top: 10),
-            padding: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 8,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ListTile(
-              contentPadding: EdgeInsets.symmetric(vertical: 0),
-              leading: Icon(Icons.location_on, color: Colors.blue.shade700),
-              title: Text(
-                '123 Main St, Hyderabad',
-                style: GoogleFonts.poppins(),
-              ),
-              trailing: Icon(Icons.edit, color: Colors.blue.shade700),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              onTap: () {
-                // TODO: Implement edit address
-              },
-            ),
-          ).animate().fadeIn(duration: 600.ms),
-          SizedBox(height: 20),
-          Text(
-            'Payment Methods',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.blue.shade700,
-            ),
-          ),
-          Container(
-            margin: EdgeInsets.only(top: 10),
-            padding: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 8,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                ListTile(
-                  contentPadding: EdgeInsets.symmetric(vertical: 8),
-                  leading: Icon(Icons.payment, color: Colors.blue.shade700),
-                  title: Text('UPI', style: GoogleFonts.poppins()),
-                  trailing: Icon(
-                    Icons.check_circle,
-                    color: Colors.green,
-                    size: 20,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  onTap: () {
-                    // TODO: Implement UPI selection
-                  },
-                ),
-                Divider(),
-                ListTile(
-                  contentPadding: EdgeInsets.symmetric(vertical: 8),
-                  leading: Icon(Icons.money, color: Colors.blue.shade700),
-                  title: Text('Cash', style: GoogleFonts.poppins()),
-                  trailing: Icon(
-                    Icons.radio_button_unchecked,
-                    color: Colors.grey,
-                    size: 20,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  onTap: () {
-                    // TODO: Implement Cash selection
-                  },
-                ),
-                Divider(),
-                ListTile(
-                  contentPadding: EdgeInsets.symmetric(vertical: 8),
-                  leading: Icon(Icons.credit_card, color: Colors.blue.shade700),
-                  title: Text('Others', style: GoogleFonts.poppins()),
-                  trailing: Icon(
-                    Icons.radio_button_unchecked,
-                    color: Colors.grey,
-                    size: 20,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  onTap: () {
-                    // TODO: Implement Others selection
-                  },
-                ),
-              ],
-            ),
-          ).animate().fadeIn(duration: 600.ms),
         ],
+      ),
+
+      // Floating Action Button
+      floatingActionButton:
+          FloatingActionButton(
+            onPressed: () => Vibration.vibrate(duration: 200),
+            backgroundColor: Colors.blue.shade700,
+            child: const Icon(Icons.edit, color: Colors.white),
+          ).animate().fadeIn(duration: 1600.ms).scale(),
+    );
+  }
+
+  // Section Title
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: GoogleFonts.montserrat(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+        shadows: [
+          Shadow(
+            blurRadius: 8,
+            color: Colors.blue.shade300.withOpacity(0.5),
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 700.ms);
+  }
+
+  // List Tile
+  Widget _buildListTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    Color? titleColor,
+    Color? iconColor,
+    Widget? trailing,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
+          leading: Icon(icon, color: iconColor ?? Colors.blue.shade300),
+          title: Text(
+            title,
+            style: GoogleFonts.montserrat(
+              color: titleColor ?? Colors.white,
+              fontSize: 16,
+            ),
+          ),
+          trailing:
+              trailing ??
+              const Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.white70,
+                size: 16,
+              ),
+        ),
       ),
     );
   }
+
+  // Collapsible Section
+  Widget _buildCollapsibleSection(
+    BuildContext context, {
+    required List<Widget> children,
+  }) {
+    return GlassmorphicContainer(
+      width: double.infinity,
+      height: 200,
+      borderRadius: 12,
+      blur: 20,
+      alignment: Alignment.center,
+      border: 2,
+      linearGradient: LinearGradient(
+        colors: [Colors.white.withOpacity(0.1), Colors.white.withOpacity(0.05)],
+      ),
+      borderGradient: LinearGradient(
+        colors: [Colors.white.withOpacity(0.5), Colors.blue.withOpacity(0.2)],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: IntrinsicHeight(child: Column(children: children)),
+      ),
+    );
+  }
+
+  // Activity Tile
+  Widget _buildActivityTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+      leading: Icon(icon, color: Colors.blue.shade300),
+      title: Text(title, style: GoogleFonts.montserrat(color: Colors.white)),
+      subtitle: Text(
+        subtitle,
+        style: GoogleFonts.montserrat(color: Colors.white70),
+      ),
+    );
+  }
+
+  // Payment Tile
+  Widget _buildPaymentTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: isSelected ? Colors.green : Colors.white),
+      title: Text(
+        title,
+        style: GoogleFonts.montserrat(
+          color: Colors.white,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      trailing:
+          isSelected
+              ? const Icon(Icons.check_circle, color: Colors.green)
+              : const Icon(Icons.radio_button_unchecked, color: Colors.white),
+      onTap: onTap,
+    );
+  }
+}
+
+// Dummy Particle Painter (you can enhance this as needed)
+class ParticlePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final random = Random();
+    final paint = Paint()..color = Colors.white.withOpacity(0.05);
+
+    for (int i = 0; i < 100; i++) {
+      final dx = random.nextDouble() * size.width;
+      final dy = random.nextDouble() * size.height;
+      final radius = random.nextDouble() * 2;
+      canvas.drawCircle(Offset(dx, dy), radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

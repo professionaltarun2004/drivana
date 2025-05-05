@@ -4,14 +4,12 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lottie/lottie.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/firestore_service.dart';
 import '../widgets/car_card.dart';
 import 'filter_screen.dart';
 import 'booking_screen.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,7 +20,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final FirestoreService _firestoreService = FirestoreService();
-  Map<String, dynamic> _filters = {'city': 'Hyderabad'};
+  Map<String, dynamic> _filters = {};
   String _selectedFilter = 'All';
   final List<String> _filterOptions = [
     'All',
@@ -30,206 +28,460 @@ class _HomeScreenState extends State<HomeScreen> {
     'Price: High to Low',
     'Rating',
   ];
-  final _offerEndTime = DateTime.now().add(Duration(hours: 12));
-  final bool _isGridView = false;
+  final DateTime _offerEndTime = DateTime.now().add(const Duration(hours: 12));
   final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _firestoreService.checkAndSeedCars(
-      _filters['city'] as String? ?? 'Hyderabad',
-    );
+    _filters = {
+      'city': 'Hyderabad',
+      'carType': null,
+      'condition': null,
+      'fuel': null,
+      'pickupDate': null,
+      'duration': null,
+    };
+    _firestoreService.checkAndSeedCars(_filters['city']!);
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text.toLowerCase());
+    });
   }
 
   void _applyFilters(Map<String, dynamic> filters) {
     setState(() {
-      _filters = Map<String, dynamic>.from(filters);
-      if (_filters['city'] == null || (_filters['city'] as String).isEmpty) {
-        _filters['city'] = 'Hyderabad';
-      }
-      _firestoreService.checkAndSeedCars(
-        _filters['city'] as String? ?? 'Hyderabad',
-      );
+      _filters = {
+        ...filters,
+        'city':
+            filters['city']?.isEmpty ?? true ? 'Hyderabad' : filters['city'],
+      };
+      _firestoreService.checkAndSeedCars(_filters['city']!);
     });
   }
+
+  Map<String, dynamic> _extractCarData(QueryDocumentSnapshot car) {
+    final data = car.data() as Map<String, dynamic>? ?? {};
+    return {
+      'id': car.id,
+      'model': data['model'] ?? 'Unknown Model',
+      'price': (data['price'] as num?)?.toDouble() ?? 0.0,
+      'imagePath': data['imagePath'] ?? 'https://picsum.photos/200/300',
+      'city': data['city'] ?? _filters['city'] ?? 'Unknown',
+      'rating': (data['rating'] as num?)?.toDouble() ?? 0.0,
+    };
+  }
+
+  void _navigateToBooking(Map<String, dynamic> carData) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => BookingScreen(
+              carId: carData['id'],
+              model: carData['model'],
+              car: carData,
+            ),
+      ),
+    );
+  }
+
+  Widget _buildCarCard(Map<String, dynamic> carData) => CarCard3D(
+    model: carData['model'] as String? ?? 'Unknown Model',
+    price: carData['price'] as double? ?? 0.0,
+    imagePath:
+        carData['imagePath'] as String? ?? 'https://picsum.photos/200/300',
+    carId: carData['id'] as String? ?? '',
+    city: carData['city'] as String? ?? 'Unknown',
+    onBook: () => _navigateToBooking(carData),
+  );
+
+  Widget _buildErrorState(String message) => Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.error_outline, color: Colors.red, size: 50),
+        const SizedBox(height: 10),
+        Text(
+          message,
+          style: const TextStyle(
+            fontFamily: 'Poppins',
+            color: Colors.red,
+            fontSize: 16,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 10),
+        ElevatedButton(
+          onPressed: () {
+            setState(() {}); // Retry fetching cars
+          },
+          style: ButtonStyle(
+            backgroundColor: const MaterialStatePropertyAll(Colors.blue),
+            foregroundColor: const MaterialStatePropertyAll(Colors.white),
+            padding: const MaterialStatePropertyAll(
+              EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            shape: MaterialStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          child: const Text('Retry', style: TextStyle(fontFamily: 'Poppins')),
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildEmptyState() => Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const SizedBox(height: 20),
+        const Icon(
+          Icons.car_rental,
+          size: 100,
+          color: Colors.grey,
+        ).animate().fade(duration: const Duration(milliseconds: 600)),
+        Text(
+          'No cars found in ${_filters['city'] ?? 'selected city'}',
+          style: const TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Try adjusting filters or seeding cars.',
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 14,
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: () async {
+            try {
+              await _firestoreService.seedCars(_filters['city']!);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Cars seeded for ${_filters['city']}!'),
+                  ),
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error seeding cars: $e')),
+                );
+              }
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue.shade700,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: const Text(
+            'Seed Cars Now',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildCarousel(List<Map<String, dynamic>> cars) => CarouselSlider(
+    options: CarouselOptions(
+      height: 200,
+      autoPlay: true,
+      enlargeCenterPage: true,
+      viewportFraction: 0.8,
+      aspectRatio: 16 / 9,
+      autoPlayInterval: const Duration(seconds: 3),
+    ),
+    items:
+        cars.map((carData) {
+          final imagePath =
+              carData['imagePath'] as String? ??
+              'https://picsum.photos/200/300';
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 8,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                children: [
+                  CachedNetworkImage(
+                    imageUrl: imagePath,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: 200,
+                    placeholder:
+                        (_, __) => const Center(
+                          child: CircularProgressIndicator(color: Colors.blue),
+                        ),
+                    errorWidget: (context, url, error) {
+                      if (kDebugMode) {
+                        print(
+                          'Image load error for ${carData['model']} at $url: $error',
+                        );
+                      }
+                      return const Center(
+                        child: Icon(Icons.error, color: Colors.red, size: 40),
+                      );
+                    },
+                  ),
+                  Positioned(
+                    bottom: 10,
+                    left: 10,
+                    child: Text(
+                      carData['model'] ?? 'Unknown Model',
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+  ).animate().fadeIn(duration: const Duration(milliseconds: 600));
+
+  Widget _buildRefreshButton() => SliverToBoxAdapter(
+    child: Center(
+      child: ElevatedButton(
+        onPressed: () async {
+          try {
+            await _firestoreService.seedCars(_filters['city']!);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Cars seeded for ${_filters['city']}!')),
+              );
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Error seeding cars: $e')));
+            }
+          }
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blue.shade700,
+          foregroundColor: Colors.amber.shade300,
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 5,
+        ),
+        child: const Text(
+          'Refresh Car Data',
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
+        ),
+      ),
+    ).animate().fade(
+      duration: const Duration(milliseconds: 400),
+      begin: 0,
+      end: 1,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: Text(
-          'Drivana',
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: Colors.blue.shade700,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.filter_list, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder:
-                      (context) => FilterScreen(
-                        onApplyFilters: _applyFilters,
-                        initialFilters: _filters,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            title: const Text(
+              'Drivana',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            backgroundColor: Colors.blue.shade700,
+            floating: true,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.filter_list, color: Colors.white),
+                onPressed:
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (_) => FilterScreen(
+                              onApplyFilters: _applyFilters,
+                              initialFilters: _filters,
+                            ),
                       ),
+                    ),
+              ),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(80),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                color: Colors.blue.shade700,
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search cars...',
+                    hintStyle: const TextStyle(fontFamily: 'Poppins'),
+                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(25),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
                 ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Opacity(
-            opacity: 0.1,
-            child: Lottie.network(
-              'https://assets.lottiefiles.com/packages/lf20_uwos7gfy.json',
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              errorBuilder:
-                  (context, error, stackTrace) =>
-                      Container(color: Colors.grey.shade200),
+              ),
             ),
           ),
-          SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          SliverToBoxAdapter(
+            child: Stack(
               children: [
-                Container(
-                  padding: EdgeInsets.all(16),
-                  color: Colors.blue.shade700,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: 'Search cars...',
-                            prefixIcon: Icon(
-                              Icons.search,
-                              color: Colors.grey.shade300,
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(25),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                          onSubmitted: (value) {
-                            // TODO: Implement search logic
-                          },
-                        ),
-                      ),
-                    ],
+                Opacity(
+                  opacity: 0.1,
+                  child: Image.asset(
+                    'assets/audi_suv.jpg',
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: MediaQuery.of(context).size.height,
+                    errorBuilder:
+                        (_, __, ___) => Container(color: Colors.grey.shade200),
+                  ).animate().fadeIn(
+                    duration: const Duration(milliseconds: 600),
                   ),
                 ),
-                Container(
-                  margin: EdgeInsets.all(16),
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.red.shade600, Colors.red.shade800],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(blurRadius: 10, color: Colors.black26),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Colors.red, Colors.red],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: const [
+                          BoxShadow(blurRadius: 10, color: Colors.black26),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Deal of the Day!',
-                            style: GoogleFonts.poppins(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            '50% OFF First Booking',
-                            style: GoogleFonts.poppins(
-                              color: Colors.white,
-                              fontSize: 16,
-                            ),
-                          ),
-                          StreamBuilder(
-                            stream: Stream.periodic(
-                              Duration(seconds: 1),
-                              (i) => i,
-                            ),
-                            builder: (context, snapshot) {
-                              final duration = _offerEndTime.difference(
-                                DateTime.now(),
-                              );
-                              if (duration.isNegative) {
-                                return Text(
-                                  'Offer Expired',
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.white,
-                                  ),
-                                );
-                              }
-                              final hours = duration.inHours;
-                              final minutes = duration.inMinutes % 60;
-                              final seconds = duration.inSeconds % 60;
-                              return Text(
-                                'Ends in $hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
-                                style: GoogleFonts.poppins(
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Deal of the Day!',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
                                   color: Colors.white,
-                                  fontSize: 14,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              );
-                            },
+                              ),
+                              const Text(
+                                '50% OFF First Booking',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              StreamBuilder(
+                                stream: Stream.periodic(
+                                  const Duration(seconds: 1),
+                                  (count) => count,
+                                ),
+                                builder: (context, snapshot) {
+                                  final duration = _offerEndTime.difference(
+                                    DateTime.now(),
+                                  );
+                                  return Text(
+                                    duration.isNegative
+                                        ? 'Offer Expired'
+                                        : 'Ends in ${duration.inHours}:${(duration.inMinutes % 60).toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}',
+                                    style: const TextStyle(
+                                      fontFamily: 'Poppins',
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ).animate().slideX(
+                            begin: -0.2,
+                            duration: const Duration(milliseconds: 600),
+                          ),
+                          const Icon(
+                            Icons.local_offer,
+                            color: Colors.white,
+                            size: 40,
+                          ).animate().fade(
+                            duration: const Duration(milliseconds: 800),
                           ),
                         ],
-                      ).animate().slideX(begin: -0.2, duration: 600.ms),
-                      Icon(
-                        Icons.local_offer,
-                        color: Colors.white,
-                        size: 40,
-                      ).animate().fadeIn(duration: 800.ms),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children:
-                          _filterOptions
-                              .map(
-                                (filter) => Padding(
-                                  padding: EdgeInsets.only(right: 8),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children:
+                              _filterOptions.map((filter) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8),
                                   child: ChoiceChip(
                                     label: Text(
                                       filter,
-                                      style: GoogleFonts.poppins(fontSize: 14),
+                                      style: const TextStyle(
+                                        fontFamily: 'Poppins',
+                                        fontSize: 14,
+                                      ),
                                     ),
                                     selected: _selectedFilter == filter,
-                                    onSelected: (selected) {
-                                      if (selected) {
-                                        setState(
+                                    onSelected:
+                                        (selected) => setState(
                                           () => _selectedFilter = filter,
-                                        );
-                                      }
-                                    },
+                                        ),
                                     selectedColor: Colors.blue.shade700,
                                     backgroundColor: Colors.white,
                                     labelStyle: TextStyle(
@@ -241,564 +493,171 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(20),
-                                      side: BorderSide(
-                                        color: Colors.grey.shade300,
+                                      side: const BorderSide(
+                                        color: Colors.grey,
                                       ),
                                     ),
                                   ),
-                                ),
-                              )
-                              .toList(),
-                    ),
-                  ),
-                ).animate().fadeIn(duration: 600.ms),
-                SizedBox(height: 16),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'Recommended for You',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.blue.shade700,
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  height: 150,
-                  child: StreamBuilder<QuerySnapshot>(
-                    stream: _firestoreService.getCars(
-                      city: _filters['city'] as String?,
-                    ),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasError) return SizedBox.shrink();
-                      if (!snapshot.hasData) return SizedBox.shrink();
-                      final cars = snapshot.data!.docs;
-                      return ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: cars.length > 5 ? 5 : cars.length,
-                        itemBuilder: (context, index) {
-                          final car = cars[index];
-                          final data =
-                              car.data() as Map<String, dynamic>? ?? {};
-                          return Padding(
-                            padding: EdgeInsets.only(
-                              left: 16,
-                              right: index == 4 ? 16 : 0,
-                            ),
-                            child: CarCard3D(
-                              model:
-                                  data['model'] as String? ?? 'Unknown Model',
-                              price: (data['price'] as num?)?.toDouble() ?? 0.0,
-                              imagePath:
-                                  data['imagePath'] as String? ??
-                                  'https://via.placeholder.com/300',
-                              carId: car.id,
-                              city:
-                                  data['city'] as String? ??
-                                  _filters['city'] as String? ??
-                                  'Unknown',
-                              onBook: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder:
-                                        (context) => BookingScreen(
-                                          carId: car.id,
-                                          model:
-                                              data['model'] as String? ??
-                                              'Unknown',
-                                          car: {
-                                            'id': car.id,
-                                            'model':
-                                                data['model'] as String? ??
-                                                'Unknown',
-                                            'price':
-                                                data['price'] as num? ?? 0.0,
-                                            'imagePath':
-                                                data['imagePath'] as String? ??
-                                                'https://via.placeholder.com/300',
-                                            'city':
-                                                data['city'] as String? ??
-                                                _filters['city'] as String? ??
-                                                'Unknown',
-                                          },
-                                        ),
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-                StreamBuilder<QuerySnapshot>(
-                  stream: _firestoreService.getCars(
-                    city: _filters['city'] as String?,
-                    carType: _filters['carType'] as String?,
-                    condition: _filters['condition'] as String?,
-                    fuel: _filters['fuel'] as String?,
-                    pickupDate: _filters['pickupDate'] as DateTime?,
-                    duration: _filters['duration'] as int?,
-                  ),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      if (kDebugMode) {
-                        print('Firestore error: ${snapshot.error}');
-                      }
-                      String errorMessage =
-                          'Error fetching cars: ${snapshot.error}';
-                      if (snapshot.error.toString().contains(
-                        'permission-denied',
-                      )) {
-                        errorMessage =
-                            'Permission denied. Please check Firestore rules and retry.';
-                      }
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              color: Colors.red,
-                              size: 50,
-                            ),
-                            SizedBox(height: 10),
-                            Text(
-                              errorMessage,
-                              style: GoogleFonts.poppins(
-                                color: Colors.red,
-                                fontSize: 16,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            SizedBox(height: 10),
-                            ElevatedButton(
-                              onPressed: () {
-                                _firestoreService.checkAndSeedCars(
-                                  _filters['city'] as String? ?? 'Hyderabad',
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue.shade700,
-                                foregroundColor: Colors.white,
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                'Retry',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    if (!snapshot.hasData) {
-                      return Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.blue.shade700,
-                        ),
-                      );
-                    }
-
-                    final cars = snapshot.data!.docs;
-                    if (kDebugMode) {
-                      print(
-                      'Fetched ${cars.length} cars for city: ${_filters['city']} with filters: $_filters',
-                    );
-                    }
-
-                    if (cars.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(height: 20),
-                            Lottie.network(
-                              'https://assets.lottiefiles.com/packages/lf20_kploitgp.json',
-                              width: 200,
-                              height: 200,
-                              errorBuilder:
-                                  (context, error, stackTrace) =>
-                                      Icon(Icons.error, size: 50),
-                            ),
-                            Text(
-                              'No cars found in ${_filters['city'] ?? 'selected city'}',
-                              style: GoogleFonts.poppins(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            SizedBox(height: 10),
-                            Text(
-                              'Try adjusting filters or seeding cars.',
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            SizedBox(height: 20),
-                            ElevatedButton(
-                              onPressed: () async {
-                                try {
-                                  await _firestoreService.seedCars(
-                                    _filters['city'] as String? ?? 'Hyderabad',
-                                  );
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Cars seeded for ${_filters['city'] ?? 'Hyderabad'}!',
-                                      ),
-                                    ),
-                                  );
-                                } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Error seeding cars: $e'),
-                                    ),
-                                  );
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue.shade700,
-                                foregroundColor: Colors.white,
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                'Seed Cars Now',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    var filteredCars = cars.toList();
-
-                    if (_selectedFilter == 'Price: Low to High') {
-                      filteredCars.sort((a, b) {
-                        final aPrice =
-                            (a.data() as Map<String, dynamic>)['price']
-                                as num? ??
-                            0;
-                        final bPrice =
-                            (b.data() as Map<String, dynamic>)['price']
-                                as num? ??
-                            0;
-                        return aPrice.compareTo(bPrice);
-                      });
-                    } else if (_selectedFilter == 'Price: High to Low') {
-                      filteredCars.sort((a, b) {
-                        final aPrice =
-                            (a.data() as Map<String, dynamic>)['price']
-                                as num? ??
-                            0;
-                        final bPrice =
-                            (b.data() as Map<String, dynamic>)['price']
-                                as num? ??
-                            0;
-                        return bPrice.compareTo(aPrice);
-                      });
-                    } else if (_selectedFilter == 'Rating') {
-                      // TODO: Implement rating-based sorting
-                    }
-
-                    return Column(
-                      children: [
-                        CarouselSlider(
-                          options: CarouselOptions(
-                            height: 200.0,
-                            autoPlay: true,
-                            enlargeCenterPage: true,
-                            viewportFraction: 0.8,
-                            aspectRatio: 16 / 9,
-                            autoPlayInterval: Duration(seconds: 3),
-                          ),
-                          items:
-                              filteredCars.map((car) {
-                                final data = car.data() as Map<String, dynamic>;
-                                return Builder(
-                                  builder: (BuildContext context) {
-                                    return Container(
-                                      margin: EdgeInsets.symmetric(
-                                        horizontal: 8.0,
-                                        vertical: 10,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(16),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black12,
-                                            blurRadius: 8,
-                                            offset: Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(16),
-                                        child: Stack(
-                                          children: [
-                                            CachedNetworkImage(
-                                              imageUrl:
-                                                  data['imagePath']
-                                                      as String? ??
-                                                  'https://via.placeholder.com/300',
-                                              fit: BoxFit.cover,
-                                              width: double.infinity,
-                                              height: 200,
-                                              placeholder:
-                                                  (context, url) => Center(
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                          color:
-                                                              Colors
-                                                                  .blue
-                                                                  .shade700,
-                                                        ),
-                                                  ),
-                                              errorWidget:
-                                                  (context, url, error) => Icon(
-                                                    Icons.error,
-                                                    color: Colors.red,
-                                                  ),
-                                            ),
-                                            Positioned(
-                                              bottom: 10,
-                                              left: 10,
-                                              child: Text(
-                                                data['model'] as String? ??
-                                                    'Unknown Model',
-                                                style: GoogleFonts.poppins(
-                                                  color: Colors.white,
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
                                 );
                               }).toList(),
-                        ).animate().fadeIn(duration: 600.ms),
-                        SizedBox(height: 16),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16.0),
-                          child:
-                              _isGridView
-                                  ? GridView.builder(
-                                    shrinkWrap: true,
-                                    physics: NeverScrollableScrollPhysics(),
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: 2,
-                                          crossAxisSpacing: 16,
-                                          mainAxisSpacing: 16,
-                                          childAspectRatio: 0.75,
-                                        ),
-                                    itemCount: filteredCars.length,
-                                    itemBuilder: (context, index) {
-                                      final car = filteredCars[index];
-                                      final data =
-                                          car.data() as Map<String, dynamic>? ??
-                                          {};
-                                      return CarCard3D(
-                                        model:
-                                            data['model'] as String? ??
-                                            'Unknown Model',
-                                        price:
-                                            (data['price'] as num?)
-                                                ?.toDouble() ??
-                                            0.0,
-                                        imagePath:
-                                            data['imagePath'] as String? ??
-                                            'https://via.placeholder.com/300',
-                                        carId: car.id,
-                                        city:
-                                            data['city'] as String? ??
-                                            _filters['city'] as String? ??
-                                            'Unknown',
-                                        onBook: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder:
-                                                  (context) => BookingScreen(
-                                                    carId: car.id,
-                                                    model:
-                                                        data['model']
-                                                            as String? ??
-                                                        'Unknown',
-                                                    car: {
-                                                      'id': car.id,
-                                                      'model':
-                                                          data['model']
-                                                              as String? ??
-                                                          'Unknown',
-                                                      'price':
-                                                          data['price']
-                                                              as num? ??
-                                                          0.0,
-                                                      'imagePath':
-                                                          data['imagePath']
-                                                              as String? ??
-                                                          'https://via.placeholder.com/300',
-                                                      'city':
-                                                          data['city']
-                                                              as String? ??
-                                                          _filters['city']
-                                                              as String? ??
-                                                          'Unknown',
-                                                    },
-                                                  ),
-                                            ),
-                                          );
-                                        },
-                                      );
-                                    },
-                                  )
-                                  : ListView.builder(
-                                    shrinkWrap: true,
-                                    physics: NeverScrollableScrollPhysics(),
-                                    itemCount: filteredCars.length,
-                                    itemBuilder: (context, index) {
-                                      final car = filteredCars[index];
-                                      final data =
-                                          car.data() as Map<String, dynamic>? ??
-                                          {};
-                                      return CarCard3D(
-                                        model:
-                                            data['model'] as String? ??
-                                            'Unknown Model',
-                                        price:
-                                            (data['price'] as num?)
-                                                ?.toDouble() ??
-                                            0.0,
-                                        imagePath:
-                                            data['imagePath'] as String? ??
-                                            'https://via.placeholder.com/300',
-                                        carId: car.id,
-                                        city:
-                                            data['city'] as String? ??
-                                            _filters['city'] as String? ??
-                                            'Unknown',
-                                        onBook: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder:
-                                                  (context) => BookingScreen(
-                                                    carId: car.id,
-                                                    model:
-                                                        data['model']
-                                                            as String? ??
-                                                        'Unknown',
-                                                    car: {
-                                                      'id': car.id,
-                                                      'model':
-                                                          data['model']
-                                                              as String? ??
-                                                          'Unknown',
-                                                      'price':
-                                                          data['price']
-                                                              as num? ??
-                                                          0.0,
-                                                      'imagePath':
-                                                          data['imagePath']
-                                                              as String? ??
-                                                          'https://via.placeholder.com/300',
-                                                      'city':
-                                                          data['city']
-                                                              as String? ??
-                                                          _filters['city']
-                                                              as String? ??
-                                                          'Unknown',
-                                                    },
-                                                  ),
-                                            ),
-                                          );
-                                        },
-                                      );
-                                    },
-                                  ),
                         ),
-                        SizedBox(height: 20),
-                        Center(
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              try {
-                                await _firestoreService.seedCars(
-                                  _filters['city'] as String? ?? 'Hyderabad',
-                                );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Cars seeded for ${_filters['city'] ?? 'Hyderabad'}!',
-                                    ),
+                      ),
+                    ).animate().fade(
+                      duration: const Duration(milliseconds: 600),
+                    ),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: const Text(
+                        'Recommended for You',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 220,
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: _firestoreService.getCars(
+                          city: _filters['city'],
+                        ),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          if (snapshot.hasError) {
+                            if (kDebugMode) {
+                              print(
+                                'Recommended cars error: ${snapshot.error}',
+                              );
+                            }
+                            return const Center(
+                              child: Text('Error loading recommended cars'),
+                            );
+                          }
+                          if (!snapshot.hasData ||
+                              snapshot.data!.docs.isEmpty) {
+                            return const Center(
+                              child: Text('No recommended cars'),
+                            );
+                          }
+                          final cars =
+                              snapshot.data!.docs
+                                  .take(5)
+                                  .map(_extractCarData)
+                                  .toList();
+                          print('Recommended cars fetched: ${cars.length}');
+                          return ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            shrinkWrap: true,
+                            itemCount: cars.length,
+                            itemBuilder:
+                                (context, index) => Padding(
+                                  padding: EdgeInsets.only(
+                                    left: 16,
+                                    right: index == cars.length - 1 ? 16 : 0,
                                   ),
-                                );
-                              } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Error seeding cars: $e'),
-                                  ),
-                                );
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue.shade700,
-                              foregroundColor: Colors.amber.shade300,
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 32,
-                                vertical: 14,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 5,
-                            ),
-                            child: Text(
-                              'Refresh Car Data',
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ).animate().fadeIn(duration: 400.ms),
-                        SizedBox(height: 20),
-                      ],
-                    );
-                  },
+                                  child: _buildCarCard(cars[index]),
+                                ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                 ),
               ],
             ),
           ),
+          StreamBuilder<QuerySnapshot>(
+            stream: _firestoreService.getCars(
+              city: _filters['city'],
+              carType: _filters['carType'],
+              condition: _filters['condition'],
+              fuel: _filters['fuel'],
+              pickupDate: _filters['pickupDate'],
+              duration: _filters['duration'],
+            ),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                print('StreamBuilder: Waiting for data...');
+                return const SliverFillRemaining(
+                  child: Center(
+                    child: CircularProgressIndicator(color: Colors.blue),
+                  ),
+                );
+              }
+              if (snapshot.hasError) {
+                if (kDebugMode) {
+                  print('Firestore error: ${snapshot.error}');
+                }
+                final message =
+                    snapshot.error.toString().contains('permission-denied')
+                        ? 'Permission denied. Please check Firestore rules and retry.'
+                        : 'Error fetching cars: ${snapshot.error}';
+                return SliverFillRemaining(child: _buildErrorState(message));
+              }
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                print('StreamBuilder: No data or empty docs');
+                return SliverFillRemaining(child: _buildEmptyState());
+              }
+              final cars = snapshot.data!.docs.map(_extractCarData).toList();
+              print(
+                'StreamBuilder: Fetched ${cars.length} cars for city: ${_filters['city']} with filters: $_filters',
+              );
+              final filteredCars =
+                  cars
+                      .where(
+                        (car) =>
+                            _searchQuery.isEmpty ||
+                            (car['model']?.toLowerCase() ?? '').contains(
+                              _searchQuery,
+                            ),
+                      )
+                      .toList();
+              if (_selectedFilter == 'Price: Low to High') {
+                filteredCars.sort((a, b) => a['price'].compareTo(b['price']));
+              } else if (_selectedFilter == 'Price: High to Low') {
+                filteredCars.sort((a, b) => b['price'].compareTo(a['price']));
+              } else if (_selectedFilter == 'Rating') {
+                filteredCars.sort(
+                  (a, b) => (b['rating'] ?? 0.0).compareTo(a['rating'] ?? 0.0),
+                );
+              }
+              return SliverList(
+                delegate: SliverChildListDelegate([
+                  SliverToBoxAdapter(child: _buildCarousel(filteredCars)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _buildCarCard(filteredCars[index]),
+                        childCount: filteredCars.length,
+                      ),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                  _buildRefreshButton(),
+                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                ]),
+              );
+            },
+          ),
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 }

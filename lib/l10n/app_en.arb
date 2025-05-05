@@ -1,7 +1,11 @@
 {
+    "@@locale": "en",
     "appName": "Drivana",
+    "@appName": {},
     "home": "Home",
+    "@home": {},
     "profile": "Profile",
+    "@profile": {},
     "orders": "Orders",
     "transactions": "Transactions",
     "dealOfTheDay": "Deal of the Day!",
@@ -10,9 +14,28 @@
     "searchCars": "Search cars...",
     "seedCars": "Seed Cars Now",
     "refreshData": "Refresh Car Data",
+    "@refreshData": {},
     "noCarsFound": "No cars found in {city}",
+    "@noCarsFound": {
+        "description": "Message displayed when no cars are found in the specified city.",
+        "placeholders": {
+            "city": {
+                "type": "String",
+                "example": "New York"
+            }
+        }
+    },
     "tryAdjustingFilters": "Try adjusting filters or seeding cars.",
     "errorFetchingCars": "Error fetching cars: {error}",
+    "@errorFetchingCars": {
+        "description": "Message displayed when there is an error fetching cars.",
+        "placeholders": {
+            "error": {
+                "type": "String",
+                "example": "Network timeout"
+            }
+        }
+    },
     "permissionDenied": "Permission denied. Please check Firestore rules and retry.",
     "retry": "Retry",
     "selectLanguage": "Select Language",

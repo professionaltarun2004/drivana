@@ -25,13 +25,21 @@ class CarDetailsScreen extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: Image.asset(
-                imageUrl ?? 'assets/images/corolla_hatchback.jpg',
-                height: 200,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Icon(Icons.error, size: 100),
-              ),
+              child: imageUrl != null
+                ? Image.asset(
+                    imageUrl!,
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Icon(Icons.error, size: 100),
+                  )
+                : Image.asset(
+                    'assets/images/corolla_hatchback.jpg',
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Icon(Icons.error, size: 100),
+                  ),
             ).animate().fadeIn(duration: 500.ms),
             SizedBox(height: 20),
             Text(
